@@ -1,6 +1,6 @@
 services:
   app:
-    image: bird-miner
+    image: ghcr.io/falconry-universe/bird-miner:main
     container_name: bird-miner
     environment:
       - REDIS_HOST=redis

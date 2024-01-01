@@ -30,7 +30,7 @@ def load_handles_from_disk():
             handles = json.load(f)
             for platform, users in handles.items():
                 for user in users:
-                    key = f"handles:{platform}:{user.get('username')}"
+                    key = f"handles:{platform}:{user.get('username')}".lower()
                     # add user if key does not exist
                     if not r.exists(key):
                         # add the key to the db (not the set)
@@ -49,7 +49,7 @@ def load_bird_in_name_from_disk():
         with open(birdinname_fn) as f:
             birdinname = json.load(f)
             for platform, users in birdinname.items():
-                usernames = [x.get("username") for x in users if x.get("username")]
+                usernames = [x.get("username").lower() for x in users if x.get("username")]
                 r.sadd(f"birdinname:{platform}", *usernames)
 
 

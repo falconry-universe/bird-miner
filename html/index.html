@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bird Miner</title>
+<title>Falcon Tumbler</title>
 <style>
   body { font-family: Arial, sans-serif; background-color: #f9f9f9; }
   .container { width: 80%; margin: auto; text-align: center; }
-  .hero { height: 150px; background-color: #007bff; }
-  .handle-form { margin-top: 20px; }
+  .hero { height: 100px; text-align: center; }
+  .handle-form { margin-top: 150px; }
   ul { list-style-type: none; padding: 0; }
   li { margin: 5px 0; }
 </style>
 </head>
 <body>
 
-<div class="hero">Bird Miner</div>
+<div class="hero"><img src="logo.jpeg"/></div>
 
 <div class="container">
   <div class="handle-form">
-    <input type="text" id="twitterHandle" placeholder="Enter Twitter Handle">
-    <button onclick="getRecommendations()">Get Recommendations</button>
+    <span>@</span><input type="text" id="twitterHandle" placeholder="Enter Your Twitter Handle">
+    <button onclick="getRecommendations()">Tumble!</button>
   </div>
   <ul id="recommendationList"></ul>
 </div>
@@ -28,7 +28,8 @@
 <script>
 function getRecommendations() {
   var handle = document.getElementById('twitterHandle').value;
-  fetch('http://localhost:8080/handles', {
+//   fetch('http://localhost:8080/handles', {
+  fetch('/handles', {
     method: 'POST', 
     body: JSON.stringify({ handle: handle, platform: 'twitter' }),
     headers: { 'Content-Type': 'application/json' }
@@ -37,11 +38,13 @@ function getRecommendations() {
   .then(data => {
     var list = document.getElementById('recommendationList');
     list.innerHTML = "";  // Clear existing list
-    data.recommendedHandles.forEach(function(user) {
+    console.log(data);
+    data.twitter.forEach(function(user) {
       var listItem = document.createElement('li');
       var link = document.createElement('a');
-      link.href = `https://twitter.com/${user}`;
-      link.textContent = user;
+      link.href = `https://twitter.com/${user.username}`;
+      link.target = '_blank';
+      link.textContent = '@' + user.username;
       listItem.appendChild(link);
       list.appendChild(listItem);
     });

@@ -65,6 +65,8 @@ def handles():
         logging.error("No handle or platform provided")
         abort(400, "handle and platform required")
 
+    handle = handle.lower()
+
     if platform not in valid_platforms or not r.exists(f"birdinname:{platform}"):
         # return 400
         logging.error(f"Invalid platform: {platform}")
@@ -154,6 +156,12 @@ def handles():
 
     # return json
     return results
+
+
+@app.route("/", method="GET")
+def index():
+    # return the contents of ../html/index.html
+    return open("../html/index.html").read()
 
 
 if __name__ == "__main__":
