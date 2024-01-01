@@ -53,5 +53,25 @@ def load_bird_in_name_from_disk():
                 r.sadd(f"birdinname:{platform}", *usernames)
 
 
+def update():
+    update_fn = "updates.json"
+    if not os.path.exists(update_fn):
+        raise Exception(f"No UPDATES_FILE file found at {update_fn}")
+    # for each user in updates.json, add to redis if they don't exist
+
+    with open(update_fn) as f:
+        updates = json.load(f)
+        for platform, users in updates.items():
+            for user in users:
+                key = f"handles:{platform}:{user.get('username')}".lower()
+                # add user if key does not exist
+                if not r.exists(key):
+                    # add the key to the db (not the set)
+                    r.set(key, json.dumps(user))
+                    # update birdinname set
+                    r.sadd(f"birdinname:{platform}", user.get("username").lower())
+                    print(f"Added {key} to redis")
+
+
 load_handles_from_disk()
 load_bird_in_name_from_disk()
