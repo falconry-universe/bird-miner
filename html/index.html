@@ -11,6 +11,7 @@
   .handle-form { margin-top: 150px; }
   ul { list-style-type: none; padding: 0; }
   li { margin: 5px 0; }
+  .error { color: red; }
 </style>
 </head>
 <body>
@@ -23,11 +24,14 @@
     <button onclick="getRecommendations()">Tumble!</button>
   </div>
   <ul id="recommendationList"></ul>
+  <div class="error" id="error"></div>
 </div>
 
 <script>
 function getRecommendations() {
   var handle = document.getElementById('twitterHandle').value;
+  var errorDiv = document.getElementById('error');
+  errorDiv.innerHTML = "";  // Clear existing error
 //   fetch('http://localhost:8080/handles', {
   fetch('/handles', {
     method: 'POST', 
@@ -38,7 +42,10 @@ function getRecommendations() {
   .then(data => {
     var list = document.getElementById('recommendationList');
     list.innerHTML = "";  // Clear existing list
-    console.log(data);
+    if (data.error) {
+      errorDiv.innerHTML = data.error;
+      return;
+    }
     data.twitter.forEach(function(user) {
       var listItem = document.createElement('li');
       var link = document.createElement('a');
@@ -49,7 +56,10 @@ function getRecommendations() {
       list.appendChild(listItem);
     });
   })
-  .catch(error => console.error('Error:', error));
+  .catch(error => {
+    var errorDiv = document.getElementById('error');
+    errorDiv.innerHTML = error;
+  });
 }
 </script>
 

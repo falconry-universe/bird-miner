@@ -72,16 +72,17 @@ def handles():
         logging.error(f"Invalid platform: {platform}")
         abort(400, "invalid platform")
 
-    user_key = f"handles:{platform}:{handle}"
-    if not r.exists(user_key):
-        logging.error(f"Invalid handle: {handle} - not in {user_key}")
-        abort(400, "invalid handle")
-
     # check to see if provided handle is in the birdinname set
     if not r.sismember(f"birdinname:{platform}", handle):
         # return 401
         logging.error(f"Invalid handle: {handle} - not in birdinname:{platform} set")
-        abort(400, "invalid handle")
+        abort(400, "oh no! You must have a bird in your display name in order to use this tool :(")
+
+    user_key = f"handles:{platform}:{handle}"
+    if not r.exists(user_key):
+        logging.error(f"Invalid handle: {handle} - not in {user_key}")
+        abort(400, "Unable to find user in following list")
+
 
     # get the user history set from history:<platform>:<handle>
     user_history_key = f"history:{platform}:{handle}"
@@ -142,7 +143,7 @@ def handles():
 
         # if handle is in handles:<platform> set, replace a random handle with handle
         if recent and results[platform]:
-            results[platform].pop(randint(0, len(results[platform])))
+            results[platform].pop()
             results[platform].append(recent)
 
         for username in results[_platform]:
