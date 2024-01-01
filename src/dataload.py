@@ -75,3 +75,4 @@ def update():
 
 load_handles_from_disk()
 load_bird_in_name_from_disk()
+update()

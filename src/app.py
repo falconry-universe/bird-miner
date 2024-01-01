@@ -67,13 +67,13 @@ def handles():
 
     handle = handle.lower()
 
-    if platform not in valid_platforms or not r.exists(f"birdinname:{platform}"):
+    if platform not in valid_platforms:
         # return 400
         logging.error(f"Invalid platform: {platform}")
         abort(400, "invalid platform")
 
     # check to see if provided handle is in the birdinname set
-    if not r.sismember(f"birdinname:{platform}", handle):
+    if not r.exists(f"birdinname:{platform}") or not r.sismember(f"birdinname:{platform}", handle):
         # return 401
         logging.error(f"Invalid handle: {handle} - not in birdinname:{platform} set")
         abort(400, "oh no! You must have a bird in your display name in order to use this tool :(")
@@ -82,7 +82,6 @@ def handles():
     if not r.exists(user_key):
         logging.error(f"Invalid handle: {handle} - not in {user_key}")
         abort(400, "Unable to find user in following list")
-
 
     # get the user history set from history:<platform>:<handle>
     user_history_key = f"history:{platform}:{handle}"
