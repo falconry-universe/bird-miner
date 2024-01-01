@@ -1,0 +1,13 @@
+services:
+  app:
+    image: bird-miner
+    container_name: bird-miner
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - 5010:5000
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - 6379:6379

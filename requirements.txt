@@ -1,0 +1,12 @@
+bottle==0.*
+gunicorn==21.*
+redis==5.*
+
+# for user collection
+typer==0.*
+arrow==1.*
+rich==10.*
+requests==2.*
+pytest==7.*
+
+

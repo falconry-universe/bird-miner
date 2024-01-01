@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bird Miner</title>
+<style>
+  body { font-family: Arial, sans-serif; background-color: #f9f9f9; }
+  .container { width: 80%; margin: auto; text-align: center; }
+  .hero { height: 150px; background-color: #007bff; }
+  .handle-form { margin-top: 20px; }
+  ul { list-style-type: none; padding: 0; }
+  li { margin: 5px 0; }
+</style>
+</head>
+<body>
+
+<div class="hero">Bird Miner</div>
+
+<div class="container">
+  <div class="handle-form">
+    <input type="text" id="twitterHandle" placeholder="Enter Twitter Handle">
+    <button onclick="getRecommendations()">Get Recommendations</button>
+  </div>
+  <ul id="recommendationList"></ul>
+</div>
+
+<script>
+function getRecommendations() {
+  var handle = document.getElementById('twitterHandle').value;
+  fetch('http://localhost:8080/handles', {
+    method: 'POST', 
+    body: JSON.stringify({ handle: handle, platform: 'twitter' }),
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(response => response.json())
+  .then(data => {
+    var list = document.getElementById('recommendationList');
+    list.innerHTML = "";  // Clear existing list
+    data.recommendedHandles.forEach(function(user) {
+      var listItem = document.createElement('li');
+      var link = document.createElement('a');
+      link.href = `https://twitter.com/${user}`;
+      link.textContent = user;
+      listItem.appendChild(link);
+      list.appendChild(listItem);
+    });
+  })
+  .catch(error => console.error('Error:', error));
+}
+</script>
+
+</body>
+</html>
