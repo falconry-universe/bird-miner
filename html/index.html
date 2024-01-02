@@ -13,6 +13,8 @@
   li { margin: 5px 0; }
   .error { color: red; }
   #show-birds { display:none; }
+  .footer { margin-top: 75px; }
+  #show-stats {display:none;}
 </style>
 </head>
 <body>
@@ -30,15 +32,41 @@
     <p>Add one of the following to your display name in order to be included as part of the flock</p>
     <p><span>𓄿𓅀𓅁𓅃𓅂𓅄𓅅𓅆𓅇𓅈𓅉𓅊𓅋𓅌𓅍𓅎𓅏𓅐𓅑𓅒𓅓𓅔𓅕𓅖𓅗𓅘𓅙𓅚𓅛𓅜𓅝𓅞𓅟𓅠𓅡𓅢𓅣𓅤𓅥𓅦𓅧𓅨𓅩𓅪𓅫𓅬𓅭𓅮𓅯𓅰𓅱𓅲𓅳𓅴𓅵𓅶𓅷𓅸𓅹𓅺𓅻𓅼𓅽𓅾𓅿</span></p>
   </div>
+  <div id="show-stats">
+    <p>Stats</p>
+    <p>Number of falcons: <span id="num-falcons"></span></p>
+    <p>Requests in past hour: <span id="requests-hour"></span></p>
+    <p>Requests in past day: <span id="requests-day"></span></p>
+    <p>Requests in past week: <span id="requests-week"></span></p>
+  </div>
+  <div class="footer">
+    <p>
+        <ul>
+            <li><a href="https://orb.falconnect.org">Orb</a></li>
+            <li><a href="https://calendly.com/uaefalconryfinance/20-minute-interrogation">Talk to your Falcon rep</a></li>
+            <li><a href="https://twitter.com/falconryfinance">@FalconryFinance</a></li>
+            <li><a href="https://register.falconnect.org">Register to be a Falcon</a></li>
+            <li><a href="https://falconfinance.ae/product/falcon-club-annual-membership/">Become a FalconClub member</a></li>
+        </ul>
+    </p>
 </div>
 
 <script>
+document.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // Prevent the default form submit if it's in a form
+        getRecommendations();
+    }
+});
+
 function getRecommendations() {
   var handle = document.getElementById('twitterHandle').value;
   var errorDiv = document.getElementById('error');
   var showBirds = document.getElementById('show-birds');
+  var showStats = document.getElementById('show-stats');
   errorDiv.innerHTML = "";  // Clear existing error
   showBirds.style.display = 'none';
+  showStats.style.display = 'none';
 
 //   fetch('http://localhost:8080/handles', {
   fetch('/handles', {
@@ -57,15 +85,25 @@ function getRecommendations() {
       }
       return;
     }
-    data.twitter.forEach(function(user) {
-      var listItem = document.createElement('li');
-      var link = document.createElement('a');
-      link.href = `https://twitter.com/${user.username}`;
-      link.target = '_blank';
-      link.textContent = '@' + user.username;
-      listItem.appendChild(link);
-      list.appendChild(listItem);
-    });
+
+    if (data.mode === 'stats') {
+        console.log(data.data)
+        showStats.style.display = 'block';
+        document.getElementById('num-falcons').innerHTML = data.data.total_followed_users.twitter;
+        document.getElementById('requests-hour').innerHTML = data.data.current_hour;
+        document.getElementById('requests-day').innerHTML = data.data.current_day;
+        document.getElementById('requests-week').innerHTML = data.data.current_week;
+    }else{
+        data.twitter.forEach(function(user) {
+        var listItem = document.createElement('li');
+        var link = document.createElement('a');
+        link.href = `https://twitter.com/${user.username}`;
+        link.target = '_blank';
+        link.textContent = '@' + user.username;
+        listItem.appendChild(link);
+        list.appendChild(listItem);
+        });
+    }
   })
   .catch(error => {
     var errorDiv = document.getElementById('error');

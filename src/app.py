@@ -2,6 +2,7 @@ import json
 import logging
 import logging.handlers
 import os
+import time
 import arrow
 from random import choice
 from bottle import Bottle, request, abort, response
@@ -48,6 +49,37 @@ def json_error_handler(error):
     return json.dumps({"status": "error", "error": error.body, "code": error.status_code})
 
 
+def get_period_keys():
+    return dict(
+        current_hour=(time.strftime("%Y%m%d%H"), 3600),
+        current_day=(time.strftime("%Y%m%d"), 86400),
+        current_week=(time.strftime("%Y%W"), 604800),
+    )
+
+
+def increment_request():
+    period_keys = get_period_keys()
+    for period, val in period_keys.items():
+        key, expires = val
+        rkey = f"requests:{period}:{key}"
+        r.incr(rkey)
+        r.expire(rkey, expires)
+
+
+def get_stats():
+    period_keys = get_period_keys()
+    results = dict()
+    for period, val in period_keys.items():
+        key, expires = val
+        rkey = f"requests:{period}:{key}"
+        try:
+            results[period] = int(r.get(rkey).decode("utf-8"))
+        except Exception as e:
+            logging.error(f"Error getting stats for {period}: {e}")
+            results[period] = 0
+    return results
+
+
 @app.route("/handles", method="POST")
 def handles():
     """
@@ -75,12 +107,24 @@ def handles():
     platform = data.get("platform", None)
 
     # check to see if handle and platform are provided
-    if not handle or not platform:
-        # return 400
-        logging.error("No handle or platform provided")
-        abort(400, "handle and platform required")
-
+    if not handle:
+        logging.error("No handle provided")
+        abort(400, "handle required")
     handle = handle.lower()
+
+    if handle == "falconryfinance":
+        # return stats:
+        data = dict(
+            total_followed_users=dict(twitter=len(r.keys("handles:twitter:*"))),
+            total_birdinname_users=dict(twitter=r.scard("birdinname:twitter")),
+        )
+        data.update(get_stats())
+        return dict(mode="stats", data=data)
+
+    if not platform:
+        # return 400
+        logging.error(f"No platform provided for {handle}")
+        abort(400, "platform required")
 
     if platform not in valid_platforms:
         # return 400
@@ -168,6 +212,8 @@ def handles():
         requesting_handle=handle, requesting_platform=platform, results=results, datetime=arrow.utcnow().isoformat()
     )
     logging.info(f"sent users: {json.dumps(log_data)}")
+
+    increment_request()
 
     # return json
     return results
