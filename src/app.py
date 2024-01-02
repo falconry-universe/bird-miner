@@ -63,7 +63,7 @@ def increment_request():
         key, expires = val
         rkey = f"requests:{period}:{key}"
         r.incr(rkey)
-        r.expire(rkey, expires)
+        r.expire(name=rkey, time=expires, nx=True)
 
 
 def get_stats():
@@ -110,7 +110,8 @@ def handles():
     if not handle:
         logging.error("No handle provided")
         abort(400, "handle required")
-    handle = handle.lower()
+    handle = handle.lower().trim()
+    platform = platform.lower().trim()
 
     if handle == "falconryfinance":
         # return stats:

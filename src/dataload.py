@@ -71,6 +71,30 @@ def update():
                     print(f"Added {key} to redis")
 
 
+def save_stats():
+    stats_keys = [x.decode("utf-8") for x in r.keys("requests:*") if x]
+    stats_fn = "stats.json"
+
+    stats = {}
+    if os.path.exists(stats_fn):
+        stats = json.load(open(stats_fn))
+
+    for key in stats_keys:
+        val = int(r.get(key))
+        if key not in stats:
+            stats[key] = val
+            print(f"Added {key} with value {stats[key]} to stats")
+        if key in stats and val > stats[key]:
+            stats[key] = val
+            print(f"Updated {key} with value {stats[key]} to stats")
+
+    with open(stats_fn, "w") as f:
+        json.dump(stats, f, indent=4)
+
+    print(f"Wrote {len(stats)} stats to {stats_fn}")
+
+
+save_stats()
 load_handles_from_disk()
 load_bird_in_name_from_disk()
 update()

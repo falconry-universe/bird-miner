@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Falcon Tumbler</title>
 <style>
-  body { font-family: Arial, sans-serif; background-color: #f9f9f9; }
+  body {
+        font-family: Arial, sans-serif; background-color: #f9f9f9;
+        background-image: url('falconglyphs.jpeg');
+        background-repeat: repeat; 
+    }
   .container { width: 80%; margin: auto; text-align: center; }
-  .hero { height: 100px; text-align: center; }
+  .hero { height: 100px; text-align: center;}
   .handle-form { margin-top: 150px; }
   ul { list-style-type: none; padding: 0; }
   li { margin: 5px 0; }
@@ -15,11 +22,18 @@
   #show-birds { display:none; }
   .footer { margin-top: 75px; }
   #show-stats {display:none;}
+  #logo { 
+    width: 380px; 
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    }
 </style>
 </head>
 <body>
 
-<div class="hero"><img src="logo.jpeg"/></div>
+<div class="hero"><img id="logo" src="logo.jpeg"/></div>
 
 <div class="container">
   <div class="handle-form">
@@ -42,11 +56,11 @@
   <div class="footer">
     <p>
         <ul>
-            <li><a href="https://orb.falconnect.org">Orb</a></li>
-            <li><a href="https://calendly.com/uaefalconryfinance/20-minute-interrogation">Talk to your Falcon rep</a></li>
-            <li><a href="https://twitter.com/falconryfinance">@FalconryFinance</a></li>
-            <li><a href="https://register.falconnect.org">Register to be a Falcon</a></li>
-            <li><a href="https://falconfinance.ae/product/falcon-club-annual-membership/">Become a FalconClub member</a></li>
+            <li><a href="https://orb.falconnect.org" target="_blank">Orb</a></li>
+            <li><a href="https://calendly.com/uaefalconryfinance/20-minute-interrogation" target="_blank">Talk to your Falcon rep</a></li>
+            <li><a href="https://twitter.com/falconryfinance" target="_blank">@FalconryFinance</a></li>
+            <li><a href="https://register.falconnect.org" target="_blank">Register to be a Falcon</a></li>
+            <li><a href="https://falconfinance.ae/product/falcon-club-annual-membership/" target="_blank">Become a FalconClub member</a></li>
         </ul>
     </p>
 </div>
