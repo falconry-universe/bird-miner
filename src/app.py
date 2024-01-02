@@ -110,8 +110,8 @@ def handles():
     if not handle:
         logging.error("No handle provided")
         abort(400, "handle required")
-    handle = handle.lower().trim()
-    platform = platform.lower().trim()
+    handle = handle.lower().strip()
+    platform = platform.lower().strip()
 
     if handle == "falconryfinance":
         # return stats:

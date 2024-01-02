@@ -79,6 +79,11 @@ def save_stats():
     if os.path.exists(stats_fn):
         stats = json.load(open(stats_fn))
 
+    # find out if we need to load stats into redis if they don't exist
+    for key in stats:
+        if not r.exists(key) or int(r.get(key)) < stats[key]:
+            r.set(key, stats[key])
+
     for key in stats_keys:
         val = int(r.get(key))
         if key not in stats:
@@ -94,7 +99,42 @@ def save_stats():
     print(f"Wrote {len(stats)} stats to {stats_fn}")
 
 
+def save_history():
+    history_data = {}
+    history_count = 0
+    history_fn = "history.json"
+    if os.path.exists(history_fn):
+        history_data = json.load(open(history_fn))
+
+    for platform in history_data:
+        for handle in history_data[platform]:
+            rkey = f"history:{platform}:{handle}"
+            if not r.exists(rkey):
+                r.sadd(rkey, *history_data[platform][handle])
+
+    for key in r.keys("history:*"):
+        platform, handle = key.decode("utf-8").split(":")[1:]
+        history = [x.decode("utf-8") for x in r.smembers(key)]
+
+        if platform not in history_data:
+            history_data[platform] = {}
+
+        if handle not in history_data[platform]:
+            history_data[platform][handle] = []
+
+        for h in history:
+            if h not in history_data[platform][handle]:
+                history_data[platform][handle].append(h)
+
+        history_count += len(history_data[platform][handle])
+
+    with open(history_fn, "w") as f:
+        json.dump(history_data, f, indent=4)
+    print(f"Wrote {history_count} history to {history_fn}")
+
+
 save_stats()
+save_history()
 load_handles_from_disk()
 load_bird_in_name_from_disk()
 update()
