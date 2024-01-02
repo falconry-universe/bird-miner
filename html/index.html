@@ -12,6 +12,7 @@
   ul { list-style-type: none; padding: 0; }
   li { margin: 5px 0; }
   .error { color: red; }
+  #show-birds { display:none; }
 </style>
 </head>
 <body>
@@ -25,13 +26,20 @@
   </div>
   <ul id="recommendationList"></ul>
   <div class="error" id="error"></div>
+  <div id="show-birds">
+    <p>Add one of the following to your display name in order to be included as part of the flock</p>
+    <p><span>𓄿𓅀𓅁𓅃𓅂𓅄𓅅𓅆𓅇𓅈𓅉𓅊𓅋𓅌𓅍𓅎𓅏𓅐𓅑𓅒𓅓𓅔𓅕𓅖𓅗𓅘𓅙𓅚𓅛𓅜𓅝𓅞𓅟𓅠𓅡𓅢𓅣𓅤𓅥𓅦𓅧𓅨𓅩𓅪𓅫𓅬𓅭𓅮𓅯𓅰𓅱𓅲𓅳𓅴𓅵𓅶𓅷𓅸𓅹𓅺𓅻𓅼𓅽𓅾𓅿</span></p>
+  </div>
 </div>
 
 <script>
 function getRecommendations() {
   var handle = document.getElementById('twitterHandle').value;
   var errorDiv = document.getElementById('error');
+  var showBirds = document.getElementById('show-birds');
   errorDiv.innerHTML = "";  // Clear existing error
+  showBirds.style.display = 'none';
+
 //   fetch('http://localhost:8080/handles', {
   fetch('/handles', {
     method: 'POST', 
@@ -44,6 +52,9 @@ function getRecommendations() {
     list.innerHTML = "";  // Clear existing list
     if (data.error) {
       errorDiv.innerHTML = data.error;
+      if (data.error.includes("You must have a bird in your display name")){
+        showBirds.style.display = 'block';
+      }
       return;
     }
     data.twitter.forEach(function(user) {

@@ -1,9 +1,10 @@
 import json
 import logging
+import logging.handlers
 import os
 import arrow
-from random import randint, choice
-from bottle import Bottle, route, run, request, abort, response
+from random import choice
+from bottle import Bottle, request, abort, response
 from redis import StrictRedis
 
 r = StrictRedis(
@@ -18,6 +19,20 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S%z",
     level=logging.INFO,
 )
+try:
+    socket_handler = logging.handlers.SocketHandler(
+        os.getenv("SOCKET_LOGGING_HOST", "localhost"),
+        os.getenv("TCP_LOGGING_PORT", logging.handlers.DEFAULT_TCP_LOGGING_PORT),
+    )
+    socket_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logging.getLogger().addHandler(socket_handler)
+except Exception as e:
+    logging.error(f"Unable to add socket handler: {e}")
+rotating_file_handler = logging.handlers.RotatingFileHandler(
+    os.getenv("LOG_FILE", "logs.log"), maxBytes=1000000, backupCount=5
+)
+rotating_file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+logging.getLogger().addHandler(rotating_file_handler)
 
 valid_platforms = [x for x in os.getenv("VALID_PLATFORMS", "twitter").split(",") if x]
 
@@ -69,7 +84,7 @@ def handles():
 
     if platform not in valid_platforms:
         # return 400
-        logging.error(f"Invalid platform: {platform}")
+        logging.error(f"Invalid platform: {platform} for handle: {handle}")
         abort(400, "invalid platform")
 
     # check to see if provided handle is in the birdinname set
@@ -148,11 +163,11 @@ def handles():
         for username in results[_platform]:
             r.sadd(user_history_key, username.get("username"))
 
-    # log request to redis logs list
+    # log request
     log_data = dict(
         requesting_handle=handle, requesting_platform=platform, results=results, datetime=arrow.utcnow().isoformat()
     )
-    r.lpush("logs", json.dumps(log_data))
+    logging.info(f"sent users: {json.dumps(log_data)}")
 
     # return json
     return results

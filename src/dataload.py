@@ -18,39 +18,37 @@ def load_handles_from_disk():
     """
 
     # if no key exists with prefix "handles:" then load from disk
-    if not r.keys("handles:*"):
-        # load handles from disk
-        handles_fn = os.getenv("HANDLES_FILE", "recommended_users.json")
-        if not os.path.exists(handles_fn):
-            raise Exception(f"No HANDLES_FILE file found at {handles_fn}")
+    # load handles from disk
+    handles_fn = os.getenv("HANDLES_FILE", "recommended_users.json")
+    if not os.path.exists(handles_fn):
+        raise Exception(f"No HANDLES_FILE file found at {handles_fn}")
 
-        # load handles from disk
-        loaded_count = 0
-        with open(handles_fn) as f:
-            handles = json.load(f)
-            for platform, users in handles.items():
-                for user in users:
-                    key = f"handles:{platform}:{user.get('username')}".lower()
-                    # add user if key does not exist
-                    if not r.exists(key):
-                        # add the key to the db (not the set)
-                        r.set(key, json.dumps(user))
-                        loaded_count += 1
+    # load handles from disk
+    loaded_count = 0
+    with open(handles_fn) as f:
+        handles = json.load(f)
+        for platform, users in handles.items():
+            for user in users:
+                key = f"handles:{platform}:{user.get('username')}".lower()
+                # add user if key does not exist
+                if not r.exists(key):
+                    # add the key to the db (not the set)
+                    r.set(key, json.dumps(user))
+                    loaded_count += 1
 
-        print(f"Loaded {loaded_count} handles from {handles_fn}")
+    print(f"Loaded {loaded_count} handles from {handles_fn}")
 
 
 def load_bird_in_name_from_disk():
-    if not r.keys("birdinname:*"):
-        birdinname_fn = os.getenv("BIRDINNAME_FILE", "bird_in_name_users.json")
-        if not os.path.exists(birdinname_fn):
-            raise Exception(f"No BIRDINNAME_FILE file found at {birdinname_fn}")
+    birdinname_fn = os.getenv("BIRDINNAME_FILE", "bird_in_name_users.json")
+    if not os.path.exists(birdinname_fn):
+        raise Exception(f"No BIRDINNAME_FILE file found at {birdinname_fn}")
 
-        with open(birdinname_fn) as f:
-            birdinname = json.load(f)
-            for platform, users in birdinname.items():
-                usernames = [x.get("username").lower() for x in users if x.get("username")]
-                r.sadd(f"birdinname:{platform}", *usernames)
+    with open(birdinname_fn) as f:
+        birdinname = json.load(f)
+        for platform, users in birdinname.items():
+            usernames = [x.get("username").lower() for x in users if x.get("username")]
+            r.sadd(f"birdinname:{platform}", *usernames)
 
 
 def update():
