@@ -8,5 +8,6 @@ arrow==1.*
 rich==10.*
 requests==2.*
 pytest==7.*
-
+requests-oauthlib==1.*
+bottle-session==1.*
 
