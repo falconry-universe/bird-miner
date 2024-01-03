@@ -320,8 +320,9 @@ def slurp_twitter(session):
 
     response = oauth.request(url=USER_PROFILE_URL, method="GET")
     profile = response.json()
-
+    logging.info(f"profile: {profile}")
     username = profile.get("screen_name")
+    user_id = profile.get("id")
     if username not in [
         x.strip() for x in os.getenv("ALLOWED_SLURP_USERS", "falconryfinance,therealxoho").split(",") if x
     ]:
@@ -332,7 +333,7 @@ def slurp_twitter(session):
     following = []
     next_cursor = -1
     while next_cursor != 0:
-        response = oauth.get(f"https://api.twitter.com/1.1/followers/list.json?cursor={next_cursor}")
+        response = oauth.get(f"https://api.twitter.com/2/users/{user_id}/following?cursor={next_cursor}")
         logging.info(f"followers repsonse: {response.content} / json: {response.json()}")
         users = response.json().get("users")
         if users:
