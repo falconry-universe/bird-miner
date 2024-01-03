@@ -93,7 +93,7 @@ def get_stats():
     return results
 
 
-@app.rounte("/_/add", method="GET")
+@app.route("/_/add", method="GET")
 def add():
     secret_key_match = os.getenv("SECRET_KEY", None)
     if not secret_key_match:
