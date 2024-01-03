@@ -93,6 +93,53 @@ def get_stats():
     return results
 
 
+@app.rounte("/_/add", method="GET")
+def add():
+    secret_key_match = os.getenv("SECRET_KEY", None)
+    if not secret_key_match:
+        return "Cannot add handles at this time"
+
+    data = request.query
+    handle = data.get("handle", None)
+    platform = data.get("platform", None)
+    secret_key = data.get("secretkey", None)
+    if secret_key != secret_key_match:
+        return "Invalid key"
+    if not handle or not platform:
+        return "Invalid handle or platform"
+    key = f"handles:{platform}:{handle}"
+    if r.exists(key):
+        return "Handle already exists"
+
+    r.set(key, json.dumps(dict(username=handle, platform=platform)))
+    r.sadd(f"birdinname:{platform}", handle)
+    return "Falcon added"
+
+
+@app.route("/_/eagle", method="GET")
+def eagle():
+    secret_key_match = os.getenv("SECRET_KEY", None)
+    if not secret_key_match:
+        return "Cannot add eagles at this time"
+    data = request.query
+    handle = data.get("handle", None)
+    platform = data.get("platform", None)
+    secret_key = data.get("secretkey", None)
+    if secret_key != secret_key_match:
+        return "Invalid key"
+    if not handle or not platform:
+        return "Invalid handle or platform"
+    key = f"handles:{platform}:{handle}"
+
+    if not r.exists(key):
+        return "Handle does not exist"
+
+    r.delete(key)
+    r.srem(f"birdinname:{platform}", handle)
+    r.sadd(f"eagle:{platform}", handle)
+    return "Eagle added"
+
+
 @app.route("/handles", method="POST")
 def handles():
     """

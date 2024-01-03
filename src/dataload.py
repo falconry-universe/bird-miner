@@ -133,8 +133,33 @@ def save_history():
     print(f"Wrote {history_count} history to {history_fn}")
 
 
+def eagles():
+    data = {}
+    eagle_fn = "eagles.json"
+    if os.path.exists(eagle_fn):
+        data = json.load(open(eagle_fn))
+
+    for platform in data:
+        rkey = f"eagles:{platform}"
+        if not r.exists(rkey):
+            r.sadd(rkey, *data[platform])
+            print(f"Added {len(data[platform])} eagles to redis")
+        # update set
+        reagles = [x.decode("utf-8") for x in r.smembers(rkey)]
+        update_eagles = [x for x in data[platform] if x not in reagles]
+        if update_eagles:
+            r.sadd(rkey, *update_eagles)
+            print(f"Added {len(update_eagles)} eagles to redis")
+
+        data[platform] = [x.decode("utf-8") for x in r.smembers(rkey)]
+
+    with open(eagle_fn, "w") as f:
+        json.dump(data, f, indent=4)
+
+
 save_stats()
 save_history()
 load_handles_from_disk()
 load_bird_in_name_from_disk()
+eagles()
 update()
