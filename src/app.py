@@ -93,7 +93,7 @@ def get_stats():
     return results
 
 
-@app.route("/_/add", method="GET")
+@app.route("/a/add", method="GET")
 def add():
     secret_key_match = os.getenv("SECRET_KEY", None)
     if not secret_key_match:
@@ -116,7 +116,7 @@ def add():
     return "Falcon added"
 
 
-@app.route("/_/eagle", method="GET")
+@app.route("/a/eagle", method="GET")
 def eagle():
     secret_key_match = os.getenv("SECRET_KEY", None)
     if not secret_key_match:
@@ -140,7 +140,7 @@ def eagle():
     return "Eagle added"
 
 
-@app.route("/handles", method="POST")
+@app.route("/a/handles", method="POST")
 def handles():
     """
     A social media handle and platform are provided in post body which is provided as json.
@@ -286,7 +286,7 @@ def index():
     return open("../html/index.html").read()
 
 
-@app.route("/slurp_twitter", method="GET")
+@app.route("/a/slurp_twitter", method="GET")
 def slurp_twitter():
     # if the user is not logged in, redirect to twitter login
     session = request.environ.get("beaker.session", {})
@@ -349,7 +349,7 @@ def slurp_twitter():
     return "I just slurped your followers and following lists. Thanks!"
 
 
-@app.route("/twitter_oauth_callback", method="GET")
+@app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback():
     """The callback route after user has authenticated with Twitter"""
     verifier = request.query.oauth_verifier
