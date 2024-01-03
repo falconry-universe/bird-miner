@@ -83,7 +83,7 @@ function getRecommendations() {
   showStats.style.display = 'none';
 
 //   fetch('http://localhost:8080/handles', {
-  fetch('/handles', {
+  fetch('/a/handles', {
     method: 'POST', 
     body: JSON.stringify({ handle: handle, platform: 'twitter' }),
     headers: { 'Content-Type': 'application/json' }

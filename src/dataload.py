@@ -25,10 +25,17 @@ def load_handles_from_disk():
 
     # load handles from disk
     loaded_count = 0
+
     with open(handles_fn) as f:
         handles = json.load(f)
         for platform, users in handles.items():
+            eagles_key = f"eagles:{platform}"
+            eagles = []
+            if r.exists(eagles_key):
+                eagles = [x.decode("utf-8") for x in r.smembers(eagles_key)]
             for user in users:
+                if user.get("username") in eagles:
+                    continue
                 key = f"handles:{platform}:{user.get('username')}".lower()
                 # add user if key does not exist
                 if not r.exists(key):
@@ -47,7 +54,12 @@ def load_bird_in_name_from_disk():
     with open(birdinname_fn) as f:
         birdinname = json.load(f)
         for platform, users in birdinname.items():
+            eagles_key = f"eagles:{platform}"
+            eagles = []
+            if r.exists(eagles_key):
+                eagles = [x.decode("utf-8") for x in r.smembers(eagles_key)]
             usernames = [x.get("username").lower() for x in users if x.get("username")]
+            usernames = [x for x in usernames if x not in eagles]
             r.sadd(f"birdinname:{platform}", *usernames)
 
 
