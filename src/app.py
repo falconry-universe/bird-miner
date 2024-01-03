@@ -318,7 +318,7 @@ def slurp_twitter(session):
         resource_owner_secret=resource_owner_secret,
     )
 
-    response = oauth.request(USER_PROFILE_URL)
+    response = oauth.request(url=USER_PROFILE_URL)
     profile = response.json()
 
     username = profile.get("screen_name")
