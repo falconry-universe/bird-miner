@@ -329,30 +329,33 @@ def slurp_twitter(session):
         return "You are not allowed to login with Twitter right now."
 
     # slurp the followers and following lists
-    followers = []
-    following = []
-    next_cursor = -1
-    while next_cursor != 0:
-        response = oauth.get(f"https://api.twitter.com/2/users/{user_id}/following?cursor={next_cursor}")
-        logging.info(f"followers repsonse: {response.content} / json: {response.json()}")
-        users = response.json().get("users")
-        if users:
-            followers.extend(users)
-        next_cursor = response.json().get("next_cursor")
+    # followers = []
+    # following = []
+    response = oauth.get(f"https://api.twitter.com/2/users/{user_id}/following")
+    logging.info(f"followers repsonse: {response.content} / json: {response.json()}")
 
-    next_cursor = -1
-    while next_cursor != 0:
-        response = oauth.get(f"https://api.twitter.com/1.1/friends/list.json?cursor={next_cursor}")
-        following.extend(response.json().get("users"))
-        next_cursor = response.json().get("next_cursor")
+    # next_cursor = -1
+    # while next_cursor != 0:
+    #     response = oauth.get(f"https://api.twitter.com/2/users/{user_id}/following?cursor={next_cursor}")
+    #     logging.info(f"followers repsonse: {response.content} / json: {response.json()}")
+    #     users = response.json().get("users")
+    #     if users:
+    #         followers.extend(users)
+    #     next_cursor = response.json().get("next_cursor")
 
-    # write the followers and following lists to redis
-    followers_key = f"twitter:followers:{username}"
-    following_key = f"twitter:following:{username}"
-    r.delete(followers_key)
-    r.delete(following_key)
-    r.set(followers_key, json.dumps(followers))
-    r.set(following_key, json.dumps(following))
+    # next_cursor = -1
+    # while next_cursor != 0:
+    #     response = oauth.get(f"https://api.twitter.com/1.1/friends/list.json?cursor={next_cursor}")
+    #     following.extend(response.json().get("users"))
+    #     next_cursor = response.json().get("next_cursor")
+
+    # # write the followers and following lists to redis
+    # followers_key = f"twitter:followers:{username}"
+    # following_key = f"twitter:following:{username}"
+    # r.delete(followers_key)
+    # r.delete(following_key)
+    # r.set(followers_key, json.dumps(followers))
+    # r.set(following_key, json.dumps(following))
 
     # At this point you can fetch protected resources
     return "I just slurped your followers and following lists. Thanks!"

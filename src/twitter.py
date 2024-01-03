@@ -144,6 +144,15 @@ def count(platform="twitter", mode="recommended"):
 
 
 @app.command()
+def following(user_id):
+    params = {"user.fields": "created_at"}
+    qs = "&".join([f"{k}={v}" for k, v in params.items()])
+    url = f"https://api.twitter.com/2/users/{user_id}/following?{qs}"
+    data = connect_to_endpoint(url)
+    print(data)
+
+
+@app.command()
 def reduceusers():
     """reduces users based on their name when it contains at least one
     character in the provided list of characters."""
