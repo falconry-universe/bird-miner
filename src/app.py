@@ -287,9 +287,8 @@ def index():
 
 
 @app.route("/a/slurp_twitter", method="GET")
-def slurp_twitter():
+def slurp_twitter(session):
     # if the user is not logged in, redirect to twitter login
-    session = request.environ.get("beaker.session", {})
     resource_owner_key = session.get("twitter_oauth_resource_owner_key", None)
     resource_owner_secret = session.get("twitter_oauth_resource_owner_secret", None)
 
@@ -350,10 +349,10 @@ def slurp_twitter():
 
 
 @app.route("/a/twitter_oauth_callback", method="GET")
-def twitter_oauth_callback():
+def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
     verifier = request.query.oauth_verifier
-    session = request.environ.get("beaker.session", {})
+
     try:
         request_token = session["twitter_oauth_request_token"]
     except KeyError:
@@ -378,7 +377,7 @@ def twitter_oauth_callback():
     session.save()
 
     # redirect to slurp_twitter
-    redirect("/slurp_twitter")
+    redirect("/a/slurp_twitter")
 
 
 if __name__ == "__main__":
