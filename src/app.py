@@ -10,11 +10,13 @@ from bottle_session import SessionPlugin
 from redis import StrictRedis
 from requests_oauthlib import OAuth1Session
 
-r = StrictRedis(
+REDIS_CFG = dict(
     host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIST_PORT", "6379")),
+    port=int(os.getenv("REDIS_PORT", "6379")),
     db=int(os.getenv("REDIS_DB", "0")),
 )
+
+r = StrictRedis(**REDIS_CFG)
 
 # create a logging format which is easily machine readable and log to a
 logging.basicConfig(
@@ -49,7 +51,7 @@ if not TWITTER_CONSUMER_KEY or not TWITTER_CONSUMER_SECRET:
     raise Exception("TWITTER_CONSUMER_KEY and TWITTER_CONSUMER_SECRET must be set")
 
 app = Bottle()
-session_plugin = SessionPlugin(cookie_lifetime=300)  # Lifetime in seconds, adjust as needed
+session_plugin = SessionPlugin(cookie_lifetime=300, **REDIS_CFG)  # Lifetime in seconds, adjust as needed
 app.install(session_plugin)
 
 
@@ -299,7 +301,9 @@ def slurp_twitter(session):
         except Exception as e:
             logging.error(f"Unable to fetch request token: {e}")
             abort(400, "Unable to fetch request token")
-        session["twitter_oauth_request_token"] = request_token
+        session["twitter_oauth_request_token"] = request_token.get("oauth_token", None)
+        session["twitter_oauth_request_token_secret"] = request_token.get("oauth_token_secret", None)
+
         authorization_url = twitter.authorization_url("https://api.twitter.com/oauth/authorize")
 
         redirect(authorization_url)
@@ -354,15 +358,20 @@ def twitter_oauth_callback(session):
     verifier = request.query.oauth_verifier
 
     try:
-        request_token = session["twitter_oauth_request_token"]
+        twitter_oauth_request_token = session["twitter_oauth_request_token"]
     except KeyError:
         abort(400, "Unable to find twitter_oauth_request_token in session")
+
+    try:
+        twitter_oauth_request_token_secret = session["twitter_oauth_request_token_secret"]
+    except KeyError:
+        abort(400, "Unable to find twitter_oauth_request_token_secret in session")
 
     oauth = OAuth1Session(
         TWITTER_CONSUMER_KEY,
         client_secret=TWITTER_CONSUMER_SECRET,
-        resource_owner_key=request_token["oauth_token"],
-        resource_owner_secret=request_token["oauth_token_secret"],
+        resource_owner_key=twitter_oauth_request_token,
+        resource_owner_secret=twitter_oauth_request_token_secret,
     )
 
     # Twitter's access token URL
@@ -374,7 +383,6 @@ def twitter_oauth_callback(session):
 
     session["twitter_oauth_resource_owner_key"] = resource_owner_key
     session["twitter_oauth_resource_owner_secret"] = resource_owner_secret
-    session.save()
 
     # redirect to slurp_twitter
     redirect("/a/slurp_twitter")
