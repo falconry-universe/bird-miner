@@ -322,7 +322,9 @@ def slurp_twitter(session):
     profile = response.json()
 
     username = profile.get("screen_name")
-    if username not in [x.strip() for x in os.getenv("ALLOWED_SLURP_USERS", "falconryfinance,therealxoho").split(",") if x]:
+    if username not in [
+        x.strip() for x in os.getenv("ALLOWED_SLURP_USERS", "falconryfinance,therealxoho").split(",") if x
+    ]:
         return "You are not allowed to login with Twitter right now."
 
     # slurp the followers and following lists
@@ -331,7 +333,10 @@ def slurp_twitter(session):
     next_cursor = -1
     while next_cursor != 0:
         response = oauth.get(f"https://api.twitter.com/1.1/followers/list.json?cursor={next_cursor}")
-        followers.extend(response.json().get("users"))
+        logging.info(f"followers repsonse: {response.content} / json: {response.json()}")
+        users = response.json().get("users")
+        if users:
+            followers.extend(users)
         next_cursor = response.json().get("next_cursor")
 
     next_cursor = -1
