@@ -322,7 +322,7 @@ def slurp_twitter(session):
     profile = response.json()
 
     username = profile.get("screen_name")
-    if username != "falconryfinance":
+    if username not in [x.strip() for x in os.getenv("ALLOWED_SLURP_USERS", "falconryfinance,therealxoho").split(",") if x]:
         return "You are not allowed to login with Twitter right now."
 
     # slurp the followers and following lists
