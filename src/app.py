@@ -390,10 +390,11 @@ def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
 
     twitter = OAuth2Session(TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"), state=request.query.state)
+    token_url = f"https://api.twitter.com/oauth2/token?client_id={TWITTER_CONFIG.get('TWITTER_OAUTH2_CLIENT_ID')}"
+
     try:
-        url = f"https://api.twitter.com/oauth2/token?client_id={TWITTER_CONFIG.get('TWITTER_OAUTH2_CLIENT_ID')}"
         session["TWITTER_OAUTH_TOKEN"] = twitter.fetch_token(
-            url=url,
+            token_url=token_url,
             client_secret=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_SECRET"),
             authorization_response=request.url,
         )
