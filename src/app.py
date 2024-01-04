@@ -310,7 +310,7 @@ def twlogin(session):
             response_type="code",
             client_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
             redirect_uri=quote(TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL")),
-            scope=quote("users.read,follows.read"),
+            scope=quote("tweet.read,users.read,follows.read"),
             state=session["TWITTER_OAUTH_STATE"],
             code_challenge=session["TWITTER_CODE_CHALLENGE"],
             code_challenge_method="S256",
@@ -404,6 +404,10 @@ def twitter_oauth_callback(session):
 
     for key in request.query:
         logging.info(f"request.query: {key}={request.query.get(key)}")
+
+    if "error" in request.query:
+        logging.error(f"Error from Twitter: {request.query.get('error')}")
+        return "Error from Twitter"
 
     # verify state
     state = request.query.get("state", None)
