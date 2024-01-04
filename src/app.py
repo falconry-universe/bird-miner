@@ -388,24 +388,26 @@ def slurp_twitter(session):
 @app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
-
-    twitter = OAuth2Session(client_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"), state=request.query.state)
-    logging.info(f"client id: {twitter.client_id}")
+    logging.info(f"request.query: {request.query}") 
+    token_data = dict(
+        cleint_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
+        grant_type="authorization_code",
+        redirect_uri=TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL"),
+        code_verifier="challenge",
+        code=request.query.code,
+    )
     token_url = "https://api.twitter.com/oauth2/token"
 
     try:
-        token = twitter.fetch_token(
-            token_url=token_url,
-            include_client_id=True,
-            client_secret=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_SECRET"),
-            authorization_response=request.url,
-        )
+        results = request.post(token_url, data=token_data)
+        if not results.ok:
+            raise Exception(f"Unable to get token: {results.status_code} {results.text}")
     except Exception as e:
-        logging.error(f"Unable to fetch token on twitter callback: {e}")
-        return "Unable to fetch token"
-    
-    if token:
-        logging.info(f"token: {token}")
+        logging.error(f"Unable to get token: {e}")
+        return "Unable to get token"
+
+    token_data = results.json()
+    logging.info(f"token_data: {token_data}")    
 
     # redirect to slurp_twitter
     redirect("/a/slurp_twitter")
