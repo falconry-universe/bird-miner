@@ -396,7 +396,6 @@ def twitter_oauth_callback(session):
         session["TWITTER_OAUTH_TOKEN"] = twitter.fetch_token(
             token_url=token_url,
             include_client_id=True,
-            code="code",
             client_secret=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_SECRET"),
             authorization_response=request.url,
         )
