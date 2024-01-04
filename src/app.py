@@ -41,14 +41,17 @@ logging.getLogger().addHandler(rotating_file_handler)
 
 valid_platforms = [x for x in os.getenv("VALID_PLATFORMS", "twitter").split(",") if x]
 
-TWITTER_AUTHORIZATION_BASE_URL = "https://api.twitter.com/oauth/authorize"
-TWITTER_TOKEN_URL = "https://api.twitter.com/oauth2/token"
+TWITTER_CONFIG = dict(
+    TWITTER_AUTHORIZATION_BASE_URL="https://api.twitter.com/oauth/authorize",
+    TWITTER_TOKEN_URL="https://api.twitter.com/2/oauth2/token",
+    TWITTER_OAUTH2_CLIENT_ID=os.getenv("TWITTER_OAUTH2_CLIENT_ID", None),
+    TWITTER_OAUTH2_CLIENT_SECRET=os.getenv("TWITTER_OAUTH2_CLIENT_SECRET", None),
+    TWITTER_OAUTH_REDIRECT_URL=os.getenv("TWITTER_OAUTH_REDIRECT_URL", None),
+)
 
-# Use the credentials from your Twitter application
-TWITTER_CONSUMER_KEY = os.getenv("TWITTER_CONSUMER_KEY", None)
-TWITTER_CONSUMER_SECRET = os.getenv("TWITTER_CONSUMER_SECRET", None)
-if not TWITTER_CONSUMER_KEY or not TWITTER_CONSUMER_SECRET:
-    raise Exception("TWITTER_CONSUMER_KEY and TWITTER_CONSUMER_SECRET must be set")
+for key in TWITTER_CONFIG:
+    if not TWITTER_CONFIG[key]:
+        raise Exception(f"{key} must be set")
 
 app = Bottle()
 session_plugin = SessionPlugin(cookie_lifetime=300, **REDIS_CFG)  # Lifetime in seconds, adjust as needed
@@ -294,8 +297,12 @@ def twlogin(session):
     oauth_token = session.get("TWITTER_OAUTH_TOKEN", None)
 
     if not oauth_token:
-        twitter = OAuth2Session(TWITTER_CONSUMER_KEY)
-        authorization_url, state = twitter.authorization_url(TWITTER_AUTHORIZATION_BASE_URL)
+        twitter = OAuth2Session(
+            TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
+            redirect_uri=TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL"),
+        )
+        url = "https://twitter.com/i/oauth2/authorize?grant_type=client_credentials&tweet.read%20users.read%20follows.read"
+        authorization_url, state = twitter.authorization_url(url)
         redirect(authorization_url + "&state=" + state)
 
     # if the user is logged in, redirect to slurp_twitter
@@ -312,9 +319,9 @@ def slurp_twitter(session):
         return "You are not logged in with Twitter right now. Login in <a href='/a/twlogin'>here</a>"
 
     # if the user is logged in, slurp the followers and following lists
-    USER_PROFILE_URL = "https://api.twitter.com/1.1/account/verify_credentials.json"
+    USER_PROFILE_URL = "https://api.twitter.com/2/users/me"
 
-    oauth = OAuth2Session(TWITTER_CONSUMER_KEY, token=oauth_token)
+    oauth = OAuth2Session(TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"), token=oauth_token)
 
     response = oauth.request(url=USER_PROFILE_URL, method="GET")
     profile = response.json()
@@ -385,7 +392,9 @@ def twitter_oauth_callback(session):
     twitter = OAuth2Session(TWITTER_CONSUMER_KEY, state=request.query.state)
     try:
         session["TWITTER_OAUTH_TOKEN"] = twitter.fetch_token(
-            TWITTER_TOKEN_URL, client_secret=TWITTER_CONSUMER_SECRET, authorization_response=request.url
+            "https://api.twitter.com/2/oauth2/token",
+            client_secret=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_SECRET"),
+            authorization_response=request.url,
         )
     except Exception as e:
         logging.error(f"Unable to fetch token on twitter callback: {e}")
