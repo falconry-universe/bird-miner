@@ -3,7 +3,9 @@ import logging
 import logging.handlers
 import os
 from redis import StrictRedis
+from typer import Typer
 
+app = Typer()
 r = StrictRedis(
     host=os.getenv("REDIS_HOST", "localhost"),
     port=int(os.getenv("REDIST_PORT", "6379")),
@@ -76,7 +78,7 @@ def load_bird_in_name_from_disk():
             r.sadd(f"birdinname:{platform}", *usernames)
 
 
-def update():
+def update_users():
     update_fn = "updates.json"
     if not os.path.exists(update_fn):
         raise Exception(f"No UPDATES_FILE file found at {update_fn}")
@@ -113,10 +115,10 @@ def save_stats():
         val = int(r.get(key))
         if key not in stats:
             stats[key] = val
-            print(f"Added {key} with value {stats[key]} to stats")
+            logging.info(f"Added {key} with value {stats[key]} to stats")
         if key in stats and val > stats[key]:
             stats[key] = val
-            print(f"Updated {key} with value {stats[key]} to stats")
+            logging.info(f"Updated {key} with value {stats[key]} to stats")
 
     with open(stats_fn, "w") as f:
         json.dump(stats, f, indent=4)
@@ -182,9 +184,20 @@ def eagles():
         json.dump(data, f, indent=4)
 
 
-save_stats()
-save_history()
-load_handles_from_disk()
-load_bird_in_name_from_disk()
-eagles()
-update()
+@app.command()
+def batch():
+    save_stats()
+    save_history()
+    load_handles_from_disk()
+    load_bird_in_name_from_disk()
+    eagles()
+    update_users()
+
+
+@app.command()
+def update():
+    update_users()
+
+
+if __name__ == "__main__":
+    app()
