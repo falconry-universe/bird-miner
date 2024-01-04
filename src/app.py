@@ -389,7 +389,7 @@ def slurp_twitter(session):
 def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
 
-    twitter = OAuth2Session(TWITTER_CONSUMER_KEY, state=request.query.state)
+    twitter = OAuth2Session(TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"), state=request.query.state)
     try:
         session["TWITTER_OAUTH_TOKEN"] = twitter.fetch_token(
             "https://api.twitter.com/2/oauth2/token",
