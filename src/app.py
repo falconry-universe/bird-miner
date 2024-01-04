@@ -390,10 +390,11 @@ def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
 
     twitter = OAuth2Session(client_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"), state=request.query.state)
+    logging.info(f"client id: {twitter.client_id}")
     token_url = "https://api.twitter.com/oauth2/token"
 
     try:
-        session["TWITTER_OAUTH_TOKEN"] = twitter.fetch_token(
+        token = twitter.fetch_token(
             token_url=token_url,
             include_client_id=True,
             client_secret=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_SECRET"),
@@ -402,6 +403,9 @@ def twitter_oauth_callback(session):
     except Exception as e:
         logging.error(f"Unable to fetch token on twitter callback: {e}")
         return "Unable to fetch token"
+    
+    if token:
+        logging.info(f"token: {token}")
 
     # redirect to slurp_twitter
     redirect("/a/slurp_twitter")
