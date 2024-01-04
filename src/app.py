@@ -303,7 +303,7 @@ def twlogin(session):
         session["TWITTER_OAUTH_STATE"] = generate_token()
         h = sha256()
         h.update(generate_token(length=43).encode("utf-8"))
-        session["TWITTER_CODE_CHALLENGE"] = h.digest()
+        session["TWITTER_CODE_CHALLENGE"] = h.hexdigest()
 
         qs = dict(
             response_type="code",
