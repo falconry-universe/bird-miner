@@ -1,4 +1,5 @@
 import json
+from hashlib import sha256
 import logging
 import logging.handlers
 import os
@@ -300,6 +301,7 @@ def twlogin(session):
 
     if not oauth_token:
         session["TWITTER_OAUTH_STATE"] = generate_token()
+        session["TWITTER_CODE_CHALLENGE"] = sha256().update(generate_token(length=43).encode("utf-8")).digest()
 
         qs = dict(
             response_type="code",
@@ -307,8 +309,8 @@ def twlogin(session):
             redirect_uri=TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL"),
             scope="tweet.read,users.read,follows.read",
             state=session["TWITTER_OAUTH_STATE"],
-            code_challenge="challenge",
-            code_challenge_method="plain",
+            code_challenge=session["TWITTER_CODE_CHALLENGE"],
+            code_challenge_method="S256",
         )
         url = "https://twitter.com/i/oauth2/authorize?" + "&".join([f"{k}={v}" for k, v in qs.items()])
         redirect(url)
@@ -396,7 +398,9 @@ def slurp_twitter(session):
 @app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
-    logging.info(f"request.query: {request.query.keys()}")
+
+    for key in request.query:
+        logging.info(f"request.query: {key}={request.query.get(key)}")
 
     # verify state
     state = request.query.get("state", None)
@@ -404,12 +408,17 @@ def twitter_oauth_callback(session):
         logging.error(f"Invalid state: {state}")
         return "Invalid state"
 
+    code = request.query.get("code", None)
+    if not code:
+        logging.error(f"Invalid oauth code: {code}")
+        return "Invalid oauth code"
+
     token_data = dict(
         cleint_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
         grant_type="authorization_code",
         redirect_uri=TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL"),
         code_verifier="challenge",
-        code=request.query.code,
+        code=code,
     )
     token_url = "https://api.twitter.com/oauth2/token"
 
