@@ -12,6 +12,7 @@ from redis import StrictRedis
 import requests
 from requests_oauthlib import OAuth2Session
 from oauthlib.common import generate_token
+from urllib.parse import quote
 
 REDIS_CFG = dict(
     host=os.getenv("REDIS_HOST", "localhost"),
@@ -308,8 +309,8 @@ def twlogin(session):
         qs = dict(
             response_type="code",
             client_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
-            redirect_uri=TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL"),
-            scope="tweet.read,users.read,follows.read",
+            redirect_uri=quote(TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL")),
+            scope=quote("users.read,follows.read"),
             state=session["TWITTER_OAUTH_STATE"],
             code_challenge=session["TWITTER_CODE_CHALLENGE"],
             code_challenge_method="S256",
