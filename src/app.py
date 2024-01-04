@@ -10,6 +10,7 @@ from bottle_session import SessionPlugin
 from redis import StrictRedis
 import requests
 from requests_oauthlib import OAuth2Session
+from oauthlib.common import generate_token
 
 REDIS_CFG = dict(
     host=os.getenv("REDIS_HOST", "localhost"),
@@ -298,13 +299,19 @@ def twlogin(session):
     oauth_token = session.get("TWITTER_OAUTH_TOKEN", None)
 
     if not oauth_token:
-        twitter = OAuth2Session(
-            TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
+        session["TWITTER_OAUTH_STATE"] = generate_token()
+
+        qs = dict(
+            response_type="code",
+            client_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
             redirect_uri=TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL"),
+            scope="tweet.read,users.read,follows.read",
+            state=session["TWITTER_OAUTH_STATE"],
+            code_challenge="challenge",
+            code_challenge_method="plain",
         )
-        url = "https://twitter.com/i/oauth2/authorize?grant_type=client_credentials&tweet.read%20users.read%20follows.read"
-        authorization_url, state = twitter.authorization_url(url)
-        redirect(authorization_url + "&state=" + state)
+        url = "https://twitter.com/i/oauth2/authorize?" + "&".join([f"{k}={v}" for k, v in qs.items()])
+        redirect(url)
 
     # if the user is logged in, redirect to slurp_twitter
     redirect("/a/slurp_twitter")
@@ -389,7 +396,14 @@ def slurp_twitter(session):
 @app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
-    logging.info(f"request.query: {request.query}")
+    logging.info(f"request.query: {request.query.keys()}")
+
+    # verify state
+    state = request.query.get("state", None)
+    if not state or state != session.get("TWITTER_OAUTH_STATE", None):
+        logging.error(f"Invalid state: {state}")
+        return "Invalid state"
+
     token_data = dict(
         cleint_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
         grant_type="authorization_code",
