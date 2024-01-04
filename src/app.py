@@ -301,7 +301,9 @@ def twlogin(session):
 
     if not oauth_token:
         session["TWITTER_OAUTH_STATE"] = generate_token()
-        session["TWITTER_CODE_CHALLENGE"] = sha256().update(generate_token(length=43).encode("utf-8")).digest()
+        h = sha256()
+        h.update(generate_token(length=43).encode("utf-8"))
+        session["TWITTER_CODE_CHALLENGE"] = h.digest()
 
         qs = dict(
             response_type="code",
