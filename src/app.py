@@ -333,7 +333,15 @@ def slurp_twitter(session):
 
     next_cursor = -1
     while next_cursor != 0:
-        response = oauth.get(f"https://api.twitter.com/1.1/followerss/list.json?cursor={next_cursor}")
+        response = oauth.get(f"https://api.twitter.com/1.1/followers/list.json?cursor={next_cursor}")
+        if response.status_code != 200:
+            logging.error(f"Unable to get followers list: {response.status_code} {response.text}")
+            abort(400, "Unable to get followers list")
+        try:
+            users = response.json().get("users")
+        except Exception as e:
+            logging.error(f"Unable to get users from followers list: {e}")
+            abort(400, "Unable to get users from followers list")
         followers.extend(response.json().get("users"))
         next_cursor = response.json().get("next_cursor")
 
