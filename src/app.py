@@ -8,6 +8,7 @@ from random import choice
 from bottle import Bottle, request, abort, response, redirect
 from bottle_session import SessionPlugin
 from redis import StrictRedis
+import requests
 from requests_oauthlib import OAuth2Session
 
 REDIS_CFG = dict(
@@ -388,7 +389,7 @@ def slurp_twitter(session):
 @app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
-    logging.info(f"request.query: {request.query}") 
+    logging.info(f"request.query: {request.query}")
     token_data = dict(
         cleint_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
         grant_type="authorization_code",
@@ -399,7 +400,7 @@ def twitter_oauth_callback(session):
     token_url = "https://api.twitter.com/oauth2/token"
 
     try:
-        results = request.post(token_url, data=token_data)
+        results = requests.post(token_url, data=token_data)
         if not results.ok:
             raise Exception(f"Unable to get token: {results.status_code} {results.text}")
     except Exception as e:
@@ -407,7 +408,7 @@ def twitter_oauth_callback(session):
         return "Unable to get token"
 
     token_data = results.json()
-    logging.info(f"token_data: {token_data}")    
+    logging.info(f"token_data: {token_data}")
 
     # redirect to slurp_twitter
     redirect("/a/slurp_twitter")
