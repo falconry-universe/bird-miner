@@ -8,7 +8,7 @@ from random import choice
 from bottle import Bottle, request, abort, response, redirect
 from bottle_session import SessionPlugin
 from redis import StrictRedis
-from requests_oauthlib import OAuth1Session
+from requests_oauthlib import OAuth2Session
 
 REDIS_CFG = dict(
     host=os.getenv("REDIS_HOST", "localhost"),
@@ -42,7 +42,7 @@ logging.getLogger().addHandler(rotating_file_handler)
 valid_platforms = [x for x in os.getenv("VALID_PLATFORMS", "twitter").split(",") if x]
 
 TWITTER_AUTHORIZATION_BASE_URL = "https://api.twitter.com/oauth/authorize"
-TWITTER_TOKEN_URL = "https://api.twitter.com/oauth/token"
+TWITTER_TOKEN_URL = "https://api.twitter.com/oauth2/token"
 
 # Use the credentials from your Twitter application
 TWITTER_CONSUMER_KEY = os.getenv("TWITTER_CONSUMER_KEY", None)
@@ -288,35 +288,33 @@ def index():
     return open("../html/index.html").read()
 
 
+@app.route("/a/twlogin", method="GET")
+def twlogin(session):
+    # if the user is not logged in, redirect to twitter login
+    oauth_token = session.get("TWITTER_OAUTH_TOKEN", None)
+
+    if not oauth_token:
+        twitter = OAuth2Session(TWITTER_CONSUMER_KEY)
+        authorization_url, state = twitter.authorization_url(TWITTER_AUTHORIZATION_BASE_URL)
+        redirect(authorization_url + "&state=" + state)
+
+    # if the user is logged in, redirect to slurp_twitter
+    redirect("/a/slurp_twitter")
+
+
 @app.route("/a/slurp_twitter", method="GET")
 def slurp_twitter(session):
     # if the user is not logged in, redirect to twitter login
-    resource_owner_key = session.get("twitter_oauth_resource_owner_key", None)
-    resource_owner_secret = session.get("twitter_oauth_resource_owner_secret", None)
-
-    if not resource_owner_key or not resource_owner_secret:
-        twitter = OAuth1Session(TWITTER_CONSUMER_KEY, client_secret=TWITTER_CONSUMER_SECRET)
-        try:
-            request_token = twitter.fetch_request_token("https://api.twitter.com/oauth/request_token")
-        except Exception as e:
-            logging.error(f"Unable to fetch request token: {e}")
-            abort(400, "Unable to fetch request token")
-        session["twitter_oauth_request_token"] = request_token.get("oauth_token", None)
-        session["twitter_oauth_request_token_secret"] = request_token.get("oauth_token_secret", None)
-
-        authorization_url = twitter.authorization_url("https://api.twitter.com/oauth/authorize")
-
-        redirect(authorization_url)
+    oauth_token = session.get("TWITTER_OAUTH_TOKEN", None)
+    if not oauth_token:
+        # show error and halt
+        logging.error("call to slurp_twitter without oauth_token")
+        return "You are not logged in with Twitter right now. Login in <a href='/a/twlogin'>here</a>"
 
     # if the user is logged in, slurp the followers and following lists
     USER_PROFILE_URL = "https://api.twitter.com/1.1/account/verify_credentials.json"
 
-    oauth = OAuth1Session(
-        TWITTER_CONSUMER_KEY,
-        client_secret=TWITTER_CONSUMER_SECRET,
-        resource_owner_key=resource_owner_key,
-        resource_owner_secret=resource_owner_secret,
-    )
+    oauth = OAuth2Session(TWITTER_CONSUMER_KEY, token=oauth_token)
 
     response = oauth.request(url=USER_PROFILE_URL, method="GET")
     profile = response.json()
@@ -325,25 +323,48 @@ def slurp_twitter(session):
     if username not in [
         x.strip() for x in os.getenv("ALLOWED_SLURP_USERS", "falconryfinance,therealxoho").split(",") if x
     ]:
+        logging.info(f"User {username} not allowed to login with Twitter right now")
         return "You are not allowed to login with Twitter right now."
+
+    user_id = profile.get("id", None)
+    if not user_id:
+        logging.error(f"Unable to get user id from profile: {profile}")
+        return "Unable to get user id"
 
     # slurp the followers and following lists
     followers = []
     following = []
 
-    next_cursor = -1
-    while next_cursor != 0:
-        response = oauth.get(f"https://api.twitter.com/1.1/followers/list.json?cursor={next_cursor}")
+    next_token = None
+    while True:
+        followers_url = f"https://api.twitter.com/2/users/{user_id}/followers"
+        qs = {"max_results": 1000, "user.fields": "id,username"}
+        if next_token:
+            qs["pagination_token"] = next_token
+        followers_url = f"{followers_url}?{'&'.join([f'{k}={v}' for k,v in qs.items()])}"
+        response = oauth.get(followers_url)
         if response.status_code != 200:
             logging.error(f"Unable to get followers list: {response.status_code} {response.text}")
             abort(400, "Unable to get followers list")
+
+        if "data" not in response.json():
+            logging.error(f"Unable to get followers list: {response.status_code} {response.text}")
+            abort(400, "Unable to get followers list")
+
         try:
-            users = response.json().get("users")
+            users = response.json().get("data")
         except Exception as e:
             logging.error(f"Unable to get users from followers list: {e}")
             abort(400, "Unable to get users from followers list")
-        followers.extend(response.json().get("users"))
-        next_cursor = response.json().get("next_cursor")
+        followers.extend(users)
+        if (
+            "meta" in response.json()
+            and "next_token" in response.json()["meta"]
+            and response.json()["meta"]["next_token"]
+        ):
+            next_token = response.json()["meta"]["next_token"]
+        if next_token is None:
+            break
 
     # write the followers and following lists to redis
     followers_key = f"twitter:followers:{username}"
@@ -360,34 +381,15 @@ def slurp_twitter(session):
 @app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback(session):
     """The callback route after user has authenticated with Twitter"""
-    verifier = request.query.oauth_verifier
 
+    twitter = OAuth2Session(TWITTER_CONSUMER_KEY, state=request.query.state)
     try:
-        twitter_oauth_request_token = session["twitter_oauth_request_token"]
-    except KeyError:
-        abort(400, "Unable to find twitter_oauth_request_token in session")
-
-    try:
-        twitter_oauth_request_token_secret = session["twitter_oauth_request_token_secret"]
-    except KeyError:
-        abort(400, "Unable to find twitter_oauth_request_token_secret in session")
-
-    oauth = OAuth1Session(
-        TWITTER_CONSUMER_KEY,
-        client_secret=TWITTER_CONSUMER_SECRET,
-        resource_owner_key=twitter_oauth_request_token,
-        resource_owner_secret=twitter_oauth_request_token_secret,
-    )
-
-    # Twitter's access token URL
-    ACCESS_TOKEN_URL = "https://api.twitter.com/oauth/access_token"
-    oauth_tokens = oauth.fetch_access_token(ACCESS_TOKEN_URL, verifier=verifier)
-
-    resource_owner_key = oauth_tokens.get("oauth_token")
-    resource_owner_secret = oauth_tokens.get("oauth_token_secret")
-
-    session["twitter_oauth_resource_owner_key"] = resource_owner_key
-    session["twitter_oauth_resource_owner_secret"] = resource_owner_secret
+        session["TWITTER_OAUTH_TOKEN"] = twitter.fetch_token(
+            TWITTER_TOKEN_URL, client_secret=TWITTER_CONSUMER_SECRET, authorization_response=request.url
+        )
+    except Exception as e:
+        logging.error(f"Unable to fetch token on twitter callback: {e}")
+        return "Unable to fetch token"
 
     # redirect to slurp_twitter
     redirect("/a/slurp_twitter")

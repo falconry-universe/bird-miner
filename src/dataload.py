@@ -1,4 +1,6 @@
 import json
+import logging
+import logging.handlers
 import os
 from redis import StrictRedis
 
@@ -7,6 +9,17 @@ r = StrictRedis(
     port=int(os.getenv("REDIST_PORT", "6379")),
     db=int(os.getenv("REDIS_DB", "0")),
 )
+
+# setup rotating file handler
+logging.getLogger().setLevel(logging.INFO)
+# create rotating file hanlder
+fh = logging.handlers.RotatingFileHandler("dataload.log", maxBytes=(1048576 * 5), backupCount=7)
+# create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# add formatter to fh
+fh.setFormatter(formatter)
+# add fh to logger
+logging.getLogger().addHandler(fh)
 
 
 def load_handles_from_disk():
@@ -42,8 +55,8 @@ def load_handles_from_disk():
                     # add the key to the db (not the set)
                     r.set(key, json.dumps(user))
                     loaded_count += 1
-
-    print(f"Loaded {loaded_count} handles from {handles_fn}")
+    if loaded_count > 0:
+        logging.info(f"Loaded {loaded_count} handles from {handles_fn}")
 
 
 def load_bird_in_name_from_disk():
@@ -80,7 +93,7 @@ def update():
                     r.set(key, json.dumps(user))
                     # update birdinname set
                     r.sadd(f"birdinname:{platform}", user.get("username").lower())
-                    print(f"Added {key} to redis")
+                    logging.info(f"Added {key} to redis")
 
 
 def save_stats():
@@ -108,7 +121,7 @@ def save_stats():
     with open(stats_fn, "w") as f:
         json.dump(stats, f, indent=4)
 
-    print(f"Wrote {len(stats)} stats to {stats_fn}")
+    logging.info(f"Wrote {len(stats)} stats to {stats_fn}")
 
 
 def save_history():
@@ -142,7 +155,7 @@ def save_history():
 
     with open(history_fn, "w") as f:
         json.dump(history_data, f, indent=4)
-    print(f"Wrote {history_count} history to {history_fn}")
+    logging.info(f"Wrote {history_count} history to {history_fn}")
 
 
 def eagles():
@@ -155,13 +168,13 @@ def eagles():
         rkey = f"eagles:{platform}"
         if not r.exists(rkey):
             r.sadd(rkey, *data[platform])
-            print(f"Added {len(data[platform])} eagles to redis")
+            logging.info(f"Added {len(data[platform])} eagles to redis")
         # update set
         reagles = [x.decode("utf-8") for x in r.smembers(rkey)]
         update_eagles = [x for x in data[platform] if x not in reagles]
         if update_eagles:
             r.sadd(rkey, *update_eagles)
-            print(f"Added {len(update_eagles)} eagles to redis")
+            logging.info(f"Added {len(update_eagles)} eagles to redis")
 
         data[platform] = [x.decode("utf-8") for x in r.smembers(rkey)]
 
