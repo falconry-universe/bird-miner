@@ -33,3 +33,10 @@ Build
 Run, copy env.template to .env and season to taste
 
     make run-docker
+
+
+## Production
+
+This app runs on a cloud service provider with docker and a separte redis instance.
+The app is fronted with an nginx proxy which also serves the static index.html file.
+Cloudflare is used as the entry point to the app.
