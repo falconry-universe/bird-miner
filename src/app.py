@@ -310,12 +310,13 @@ def twlogin(session):
             response_type="code",
             client_id=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
             redirect_uri=quote(TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL")),
-            scope=quote("tweet.read,users.read,follows.read"),
+            scope=quote("tweet.read users.read follows.read"),
             state=session["TWITTER_OAUTH_STATE"],
             code_challenge=session["TWITTER_CODE_CHALLENGE"],
             code_challenge_method="S256",
         )
         url = "https://twitter.com/i/oauth2/authorize?" + "&".join([f"{k}={v}" for k, v in qs.items()])
+        logging.info(f"Auth url: {url}")
         redirect(url)
 
     # if the user is logged in, redirect to slurp_twitter
