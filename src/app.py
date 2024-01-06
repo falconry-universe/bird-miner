@@ -437,6 +437,7 @@ def twitter_oauth_callback(session):
 
     screen_name = access_token[b"screen_name"].decode("utf-8")
     user_id = access_token[b"user_id"].decode("utf-8")
+    logging.info(f"screen_name: {screen_name}, user_id: {user_id}")
 
     # These are the tokens you would store long term, someplace safe
     session["real_oauth_token"] = access_token[b"oauth_token"].decode("utf-8")
@@ -445,11 +446,12 @@ def twitter_oauth_callback(session):
     # Call api.twitter.com/1.1/users/show.json?user_id={user_id}
     real_token = oauth.Token(session["real_oauth_token"], session["real_oauth_token_secret"])
     real_client = oauth.Client(consumer, real_token)
+
     real_resp, real_content = real_client.request(twcfg.show_user_url + "?user_id=" + user_id, "GET")
 
     if real_resp["status"] != "200":
-        error_message = "Invalid response from Twitter API GET users/show: {status}".format(status=real_resp["status"])
-        return error_message
+        logging.error(f"Invalid response from Twitter API GET users/show: {real_resp.content}")
+        return "Error in response from Twitter"
 
     response = json.loads(real_content.decode("utf-8"))
 
