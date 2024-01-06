@@ -7,11 +7,66 @@ from random import randint
 import requests
 from rich import print
 from typer import Typer
+from urllib.parse import urlencode
+from base64 import b64encode
 
 app = Typer()
 
 TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
 USERS_FILE = os.getenv("USERS_FILE", "users.json")
+
+
+class Twitter:
+    consumer_key = os.getenv("TWITTER_CONSUMER_KEY")
+    consumer_secret = os.getenv("TWITTER_CONSUMER_SECRET")
+    followers_url = "https://api.twitter.com/2/users/{}/followers"
+    following_url = "https://api.twitter.com/2/users/{}/following"
+    user_lookup_url = "https://api.twitter.com/2/users"
+    bearer_token = None
+
+    def get_bearer_token(self):
+        if self.bearer_token:
+            return self.bearer_token
+        auth = b64encode(f"{self.consumer_key}:{self.consumer_secret}".encode("ascii")).decode("ascii")
+        try:
+            response = requests.post(
+                "https://api.twitter.com/oauth2/token",
+                headers={
+                    "Authorization": f"Basic {auth}",
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                },
+                data=urlencode({"grant_type": "client_credentials"}),
+            )
+            if not response.ok:
+                raise Exception(f"Error getting bearer token: {response.text}")
+        except Exception as e:
+            print(e)
+            return None
+        if "token_type" not in response.json():
+            raise Exception(f"Error getting bearer token: {response.text}")
+        if response.json().get("token_type") != "bearer":
+            raise Exception(f"Error getting bearer token: {response.text}")
+        self.bearer_token = response.json().get("access_token")
+
+        return self.bearer_token
+
+    def get_followers(self, user_id):
+        bearer_token = self.get_bearer_token()
+        if not bearer_token:
+            raise Exception("Error getting bearer token")
+        url = self.followers_url.format(user_id)
+        params = {
+            "user.fields": "id,name,username",
+        }
+        qs = "&".join([f"{k}={v}" for k, v in params.items()])
+        url = f"https://api.twitter.com/2/users/{user_id}/followers?{qs}"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {bearer_token}"},
+        )
+        if not response.ok:
+            raise Exception(f"Error getting followers for {user_id}: {response.text}")
+        return response.json()
 
 
 def bearer_oauth(r):
@@ -150,6 +205,13 @@ def following(user_id):
     url = f"https://api.twitter.com/2/users/{user_id}/following?{qs}"
     data = connect_to_endpoint(url)
     print(data)
+
+
+@app.command()
+def followers(user_id):
+    twitter = Twitter()
+    followers = twitter.get_followers(user_id)
+    print(followers)
 
 
 @app.command()
