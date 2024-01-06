@@ -49,9 +49,9 @@ class Twitter:
     access_token_url = "https://api.twitter.com/oauth/access_token"
     authorize_url = "https://api.twitter.com/oauth/authorize"
     show_user_url = "https://api.twitter.com/1.1/users/show.json"
-    followers_url = "https://api.twitter.com/1.1/followers/ids.json"
-    # following_url = "https://api.twitter.com/1.1/friends/ids.json"
-    followers_url = "https://api.twitter.com/2/users/:id/following"
+    # followers_url = "https://api.twitter.com/1.1/followers/ids.json"
+    following_url = "https://api.twitter.com/1.1/friends/ids.json"
+    followers_url = "https://api.twitter.com/2/users/:id/followers"
     consumer_key = os.getenv("TWITTER_OAUTH2_CLIENT_ID", None)
     consumer_secret = os.getenv("TWITTER_OAUTH2_CLIENT_SECRET", None)
     redirect_uri = os.getenv("TWITTER_OAUTH_REDIRECT_URL", None)
@@ -448,7 +448,7 @@ def twitter_oauth_callback(session):
     real_token = oauth.Token(session["real_oauth_token"], session["real_oauth_token_secret"])
     real_client = oauth.Client(consumer, real_token)
 
-    real_resp, real_content = real_client.request(twcfg.following_url.replace(":id", user_id), "GET")
+    real_resp, real_content = real_client.request(twcfg.followers_url.replace(":id", user_id), "GET")
 
     if real_resp["status"] != "200":
         logging.error(f"Invalid response from Twitter API GET {twcfg.followers_url}: {real_resp.status} {real_content}")
