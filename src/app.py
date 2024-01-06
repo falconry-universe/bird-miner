@@ -450,7 +450,7 @@ def twitter_oauth_callback(session):
     real_resp, real_content = real_client.request(twcfg.show_user_url + "?user_id=" + user_id, "GET")
 
     if real_resp["status"] != "200":
-        logging.error(f"Invalid response from Twitter API GET users/show: {real_resp.content}")
+        logging.error(f"Invalid response from Twitter API GET users/show: {real_resp.status} {real_content}")
         return "Error in response from Twitter"
 
     response = json.loads(real_content.decode("utf-8"))
