@@ -9,10 +9,8 @@ from random import choice
 from bottle import Bottle, request, abort, response, redirect
 from bottle_session import SessionPlugin
 from redis import StrictRedis
-import requests
 import oauth2 as oauth
-from oauthlib.common import generate_token
-from urllib.parse import quote, urlencode, parse_qsl
+from urllib.parse import urlencode, parse_qsl
 
 REDIS_CFG = dict(
     host=os.getenv("REDIS_HOST", "localhost"),

@@ -6,7 +6,6 @@ redis==5.*
 typer==0.*
 arrow==1.*
 rich==10.*
-requests==2.*
 pytest==7.*
 bottle-session==1.*
 oauth2==1.*
