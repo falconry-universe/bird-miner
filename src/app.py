@@ -10,9 +10,9 @@ from bottle import Bottle, request, abort, response, redirect
 from bottle_session import SessionPlugin
 from redis import StrictRedis
 import requests
-from requests_oauthlib import OAuth2Session
+import oauth2 as oauth
 from oauthlib.common import generate_token
-from urllib.parse import quote
+from urllib.parse import quote, urlencode, parse_qsl
 
 REDIS_CFG = dict(
     host=os.getenv("REDIS_HOST", "localhost"),
@@ -45,17 +45,26 @@ logging.getLogger().addHandler(rotating_file_handler)
 
 valid_platforms = [x for x in os.getenv("VALID_PLATFORMS", "twitter").split(",") if x]
 
-TWITTER_CONFIG = dict(
-    TWITTER_AUTHORIZATION_BASE_URL="https://api.twitter.com/oauth/authorize",
-    TWITTER_TOKEN_URL="https://api.twitter.com/2/oauth2/token",
-    TWITTER_OAUTH2_CLIENT_ID=os.getenv("TWITTER_OAUTH2_CLIENT_ID", None),
-    TWITTER_OAUTH2_CLIENT_SECRET=os.getenv("TWITTER_OAUTH2_CLIENT_SECRET", None),
-    TWITTER_OAUTH_REDIRECT_URL=os.getenv("TWITTER_OAUTH_REDIRECT_URL", None),
-)
 
-for key in TWITTER_CONFIG:
-    if not TWITTER_CONFIG[key]:
-        raise Exception(f"{key} must be set")
+class Twitter:
+    request_token_url = "https://api.twitter.com/oauth/request_token"
+    access_token_url = "https://api.twitter.com/oauth/access_token"
+    authorize_url = "https://api.twitter.com/oauth/authorize"
+    show_user_url = "https://api.twitter.com/1.1/users/show.json"
+    followers_url = "https://api.twitter.com/1.1/followers/ids.json"
+    following_url = "https://api.twitter.com/1.1/friends/ids.json"
+    consumer_key = os.getenv("TWITTER_OAUTH2_CLIENT_ID", None)
+    consumer_secret = os.getenv("TWITTER_OAUTH2_CLIENT_SECRET", None)
+    redirect_uri = os.getenv("TWITTER_OAUTH_REDIRECT_URL", None)
+
+    def __init__(self):
+        if not self.consumer_key:
+            raise Exception("TWITTER_OAUTH2_CLIENT_ID not set")
+        if not self.consumer_secret:
+            raise Exception("TWITTER_OAUTH2_CLIENT_SECRET not set")
+        if not self.redirect_uri:
+            raise Exception("TWITTER_OAUTH_REDIRECT_URL not set")
+
 
 app = Bottle()
 session_plugin = SessionPlugin(cookie_lifetime=300, **REDIS_CFG)  # Lifetime in seconds, adjust as needed
@@ -297,172 +306,169 @@ def index():
 
 @app.route("/a/twlogin", method="GET")
 def twlogin(session):
-    # 3 legged oauth2 flow
+    twcfg = Twitter()
 
-    # request token
-    kwargs = dict(
-        oauth_callback=quote(TWITTER_CONFIG.get("TWITTER_OAUTH_REDIRECT_URL")),
-        oauth_consumer_key=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
+    # Generate the OAuth request tokens, then display them
+    consumer = oauth.Consumer(twcfg.consumer_key, twcfg.consumer_secret)
+    client = oauth.Client(consumer)
+    resp, content = client.request(
+        twcfg.request_token_url, "POST", body=urlencode({"oauth_callback": twcfg.redirect_uri})
     )
 
-    url = "https://api.twitter.com/oauth/request_token"
+    if resp["status"] != "200":
+        error_message = "Invalid response, status {status}, {message}".format(
+            status=resp["status"], message=content.decode("utf-8")
+        )
+        logging.error(error_message)
+        return "Could not get request token"
 
-    try:
-        results = requests.post(url, data=kwargs)
-        if not results.ok:
-            raise Exception(f"Unable to get token: {results.status_code} {results.text}")
-        data = results.json()
-        if not data:
-            raise Exception(
-                f"Unable to get token - no json data found in response: {results.status_code} {results.text}"
-            )
-        if "oauth_callback_confirmed" not in data:
-            raise Exception(
-                f"Unable to get token - oauth_callback_confirmed not in data: {results.status_code} {results.text}"
-            )
-        if data.get("oauth_callback_confirmed", "false").lower() == "false":
-            raise Exception(
-                f"Unable to get token - oauth_callback_confirmed is '{data.get('oauth_callback_confirmed')}' when it should be 'true': {results.status_code} {results.text}"
-            )
+    request_token = dict(parse_qsl(content))
+    oauth_token = request_token[b"oauth_token"].decode("utf-8")
+    oauth_token_secret = request_token[b"oauth_token_secret"].decode("utf-8")
 
-    except Exception as e:
-        logging.error(f"Unable to get twitter token: {e}")
-        return "Unable to get twitter token"
+    session["oauth_token"] = oauth_token_secret
 
-    session["TWITTER_OAUTH_TOKEN"] = data["oauth_token"]
-    session["TWITTER_OAUTH_TOKEN_SECRET"] = data["oauth_token_secret"]
-
-    # call authorize endpoint
-    url = "https://api.twitter.com/oauth/authorize?oauth_token=" + data["oauth_token"]
-    redirect(url)  # should end up at redirect url
+    redirect(f"{twcfg.authorize_url}?oauth_token={oauth_token}")
 
 
-@app.route("/a/slurp_twitter", method="GET")
-def slurp_twitter(session):
-    # if the user is not logged in, redirect to twitter login
-    oauth_access_token = session["TWITTER_OAUTH_ACCESS_TOKEN"]
-    oauth_access_token_secret = session["TWITTER_OAUTH_ACCESS_TOKEN_SECRET"]
-    if not oauth_access_token or not oauth_access_token_secret:
-        # show error and halt
-        logging.error("call to slurp_twitter without oauth_access_token")
-        return "You are not logged in with Twitter right now. Login in <a href='/a/twlogin'>here</a>"
+# @app.route("/a/slurp_twitter", method="GET")
+# def slurp_twitter(session):
+#     # if the user is not logged in, redirect to twitter login
+#     oauth_access_token = session["TWITTER_OAUTH_ACCESS_TOKEN"]
+#     oauth_access_token_secret = session["TWITTER_OAUTH_ACCESS_TOKEN_SECRET"]
+#     if not oauth_access_token or not oauth_access_token_secret:
+#         # show error and halt
+#         logging.error("call to slurp_twitter without oauth_access_token")
+#         return "You are not logged in with Twitter right now. Login in <a href='/a/twlogin'>here</a>"
 
-    auth_data = dict(
-        oauth_consumer_key=session["TWITTER_OAUTH_ACCESS_TOKEN"],
-        oauth_token=session["TWITTER_OAUTH_ACCESS_TOKEN_SECRET"],
-    )
+#     auth_data = dict(
+#         oauth_consumer_key=session["TWITTER_OAUTH_ACCESS_TOKEN"],
+#         oauth_token=session["TWITTER_OAUTH_ACCESS_TOKEN_SECRET"],
+#     )
 
-    user_profile_url = "https://api.twitter.com/1.1/account/verify_credentials.json"
-    try:
-        response = requests.get(user_profile_url, data=auth_data)
-        if not response.ok:
-            raise Exception(f"Unable to get user profile: {response.status_code} {response.text}")
-        if "screen_name" not in response.json():
-            raise Exception(f"Unable to get user profile: {response.status_code} {response.text}")
-    except Exception as e:
-        logging.error(f"Unable to get twitter user profile: {e}")
-        return "Unable to get twitter user profile"
+#     user_profile_url = "https://api.twitter.com/1.1/account/verify_credentials.json"
+#     try:
+#         response = requests.get(user_profile_url, data=auth_data)
+#         if not response.ok:
+#             raise Exception(f"Unable to get user profile: {response.status_code} {response.text}")
+#         if "screen_name" not in response.json():
+#             raise Exception(f"Unable to get user profile: {response.status_code} {response.text}")
+#     except Exception as e:
+#         logging.error(f"Unable to get twitter user profile: {e}")
+#         return "Unable to get twitter user profile"
 
-    username = response.json().get("name", None)
-    if not username:
-        logging.error("Unable to get twitter username")
-        return "Unable to get twitter username"
+#     username = response.json().get("name", None)
+#     if not username:
+#         logging.error("Unable to get twitter username")
+#         return "Unable to get twitter username"
 
-    followers_url = "https://api.twitter.com/1.1/followers/ids.json"
-    # following_url =
+#     followers_url = "https://api.twitter.com/1.1/followers/ids.json"
+#     # following_url =
 
-    followers = []
-    following = []
+#     followers = []
+#     following = []
 
-    next_cursor = -1
-    while next_cursor:
-        qs = {"count": 5000, "cursor": next_cursor}
-        url = f"{followers_url}?{'&'.join([f'{k}={v}' for k,v in qs.items()])}"
-        try:
-            response = requests.post(url, data=auth_data)
-            if not response.ok:
-                raise Exception(f"Unable to get followers: {response.status_code} {response.text}")
-            if "ids" not in response.json():
-                raise Exception(f"Unable to get followers: {response.status_code} {response.text}")
-        except Exception as e:
-            logging.error(f"Unable to get twitter followers: {e}")
-            return "Unable to get twitter followers"
+#     next_cursor = -1
+#     while next_cursor:
+#         qs = {"count": 5000, "cursor": next_cursor}
+#         url = f"{followers_url}?{'&'.join([f'{k}={v}' for k,v in qs.items()])}"
+#         try:
+#             response = requests.post(url, data=auth_data)
+#             if not response.ok:
+#                 raise Exception(f"Unable to get followers: {response.status_code} {response.text}")
+#             if "ids" not in response.json():
+#                 raise Exception(f"Unable to get followers: {response.status_code} {response.text}")
+#         except Exception as e:
+#             logging.error(f"Unable to get twitter followers: {e}")
+#             return "Unable to get twitter followers"
 
-        followers.extend(response.json().get("ids"))
-        next_cursor = response.json().get("next_cursor", None)
+#         followers.extend(response.json().get("ids"))
+#         next_cursor = response.json().get("next_cursor", None)
 
-    # write the followers and following lists to redis
-    followers_key = f"twitter:followers:{username}"
-    following_key = f"twitter:following:{username}"
-    r.delete(followers_key)
-    r.delete(following_key)
-    r.set(followers_key, json.dumps(followers))
-    r.set(following_key, json.dumps(following))
+#     # write the followers and following lists to redis
+#     followers_key = f"twitter:followers:{username}"
+#     following_key = f"twitter:following:{username}"
+#     r.delete(followers_key)
+#     r.delete(following_key)
+#     r.set(followers_key, json.dumps(followers))
+#     r.set(following_key, json.dumps(following))
 
-    # At this point you can fetch protected resources
-    return "I just slurped your followers and following lists. Thanks!"
+#     # At this point you can fetch protected resources
+#     return "I just slurped your followers and following lists. Thanks!"
 
 
 @app.route("/a/twitter_oauth_callback", method="GET")
 def twitter_oauth_callback(session):
-    """The callback route after user has authenticated with Twitter"""
+    # Accept the callback params, get the token and call the API to
+    # display the logged-in user's name and handle
+    oauth_token = request.args.get("oauth_token")
+    oauth_verifier = request.args.get("oauth_verifier")
+    oauth_denied = request.args.get("denied")
 
-    for key in request.query:
-        logging.info(f"request.query: {key}={request.query.get(key)}")
+    # if the OAuth request was denied, delete our local token
+    # and show an error message
+    if oauth_denied:
+        if session[oauth_denied]:
+            del session[oauth_denied]
+        return "the oauth request was denied by this user"
 
-    if request.args.get("denied"):
-        logging.info(f"User denied access to Twitter: {request.query.get('denied')}")
-        return "User denied access to Twitter"
+    if not oauth_token or not oauth_verifier:
+        if not oauth_token:
+            logging.error("callback params missing - oauth_token")
+        if not oauth_verifier:
+            logging.error("callback params missing - oauth_verifier")
+        return "callback param(s) missing"
 
-    if "error" in request.query:
-        logging.error(f"Error from Twitter: {request.query.get('error')}")
-        return "Error from Twitter"
+    # unless oauth_token is still stored locally, return error
+    if not session[oauth_token]:
+        logging.error("oauth_token not found locally")
+        return "oauth_token not found locally"
 
-    for k in ["oauth_token", "oauth_verifier"]:
-        if k not in request.query:
-            logging.error(f"Missing oauth parameter: {k}")
-            return "Missing oauth parameter"
-        if not request.query.get(k):
-            logging.error(f"Empty oauth parameter: {k}")
-            return "Empty oauth parameter"
+    oauth_token_secret = session[oauth_token]
 
-    oauth_token = request.query.get("oauth_token")
-    if oauth_token != session.get("TWITTER_OAUTH_TOKEN", None):
-        logging.error(f"Invalid oauth token: {oauth_token}")
-        return "Invalid oauth token"
+    # if we got this far, we have both callback params and we have
+    # found this token locally
+    twcfg = Twitter()
+    consumer = oauth.Consumer(twcfg.consumer_key, twcfg.consumer_secret)
+    token = oauth.Token(oauth_token, oauth_token_secret)
+    token.set_verifier(oauth_verifier)
+    client = oauth.Client(consumer, token)
 
-    # request auth token
-    url = "https://api.twitter.com/oauth/access_token"
-    data = dict(
-        oauth_token=oauth_token,
-        oauth_verifier=request.query.get("oauth_verifier"),
-        oauth_consumer_key=TWITTER_CONFIG.get("TWITTER_OAUTH2_CLIENT_ID"),
-    )
+    resp, content = client.request(twcfg.access_token_url, "POST")
+    access_token = dict(parse_qsl(content))
 
-    try:
-        results = requests.post(url, data=data)
-        if not results.ok:
-            raise Exception(f"Unable to get token: {results.status_code} {results.text}")
-        data = results.json()
-        if not data:
-            raise Exception(
-                f"Unable to get token - no json data found in response: {results.status_code} {results.text}"
-            )
-        if "oauth_token" not in data:
-            raise Exception(f"Unable to get token - oauth_token not in data: {results.status_code} {results.text}")
-        if "oauth_token_secret" not in data:
-            raise Exception(
-                f"Unable to get token - oauth_token_secret not in data: {results.status_code} {results.text}"
-            )
-    except Exception as e:
-        logging.error(f"Unable to get twitter token: {e}")
-        return "Unable to get twitter token"
+    screen_name = access_token[b"screen_name"].decode("utf-8")
+    user_id = access_token[b"user_id"].decode("utf-8")
 
-    session["TWITTER_OAUTH_ACCESS_TOKEN"] = data["oauth_token"]
-    session["TWITTER_OAUTH_ACCESS_TOKEN_SECRET"] = data["oauth_token_secret"]
+    # These are the tokens you would store long term, someplace safe
+    session["real_oauth_token"] = access_token[b"oauth_token"].decode("utf-8")
+    session["real_oauth_token_secret"] = access_token[b"oauth_token_secret"].decode("utf-8")
 
-    # redirect to slurp_twitter
-    redirect("/a/slurp_twitter")
+    # Call api.twitter.com/1.1/users/show.json?user_id={user_id}
+    real_token = oauth.Token(session["real_oauth_token"], session["real_oauth_token_secret"])
+    real_client = oauth.Client(consumer, real_token)
+    real_resp, real_content = real_client.request(twcfg.show_user_url + "?user_id=" + user_id, "GET")
+
+    if real_resp["status"] != "200":
+        error_message = "Invalid response from Twitter API GET users/show: {status}".format(status=real_resp["status"])
+        return error_message
+
+    response = json.loads(real_content.decode("utf-8"))
+
+    friends_count = response["friends_count"]
+    statuses_count = response["statuses_count"]
+    followers_count = response["followers_count"]
+    name = response["name"]
+
+    logging.info(f"Successfully logged in with Twitter as {name} ({screen_name})")
+    logging.info(f"friends_count: {friends_count}")
+    logging.info(f"statuses_count: {statuses_count}")
+    logging.info(f"followers_count: {followers_count}")
+
+    # don't keep this token and secret in memory any longer
+    del session[oauth_token]
+
+    return "I just slurped your followers and following lists. Thanks!"
 
 
 if __name__ == "__main__":
