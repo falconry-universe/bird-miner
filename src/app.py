@@ -324,8 +324,7 @@ def twlogin(session):
     oauth_token = request_token[b"oauth_token"].decode("utf-8")
     oauth_token_secret = request_token[b"oauth_token_secret"].decode("utf-8")
 
-    session["oauth_token"] = oauth_token_secret
-    logging.info(f"auth oauth_token: {oauth_token}, {session[oauth_token]}")
+    session[oauth_token] = oauth_token_secret
 
     redirect(f"{twcfg.authorize_url}?oauth_token={oauth_token}")
 
@@ -418,7 +417,6 @@ def twitter_oauth_callback(session):
             logging.error("callback params missing - oauth_verifier")
         return "callback param(s) missing"
 
-    logging.info(f"callback oauth_token: {oauth_token}, {session[oauth_token]}")
     # unless oauth_token is still stored locally, return error
     if not session[oauth_token]:
         logging.error("oauth_token not found locally")
