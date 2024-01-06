@@ -447,23 +447,14 @@ def twitter_oauth_callback(session):
     real_token = oauth.Token(session["real_oauth_token"], session["real_oauth_token_secret"])
     real_client = oauth.Client(consumer, real_token)
 
-    real_resp, real_content = real_client.request(twcfg.show_user_url + "?user_id=" + user_id, "GET")
+    real_resp, real_content = real_client.request(twcfg.following_url, "GET")
 
     if real_resp["status"] != "200":
         logging.error(f"Invalid response from Twitter API GET users/show: {real_resp.status} {real_content}")
         return "Error in response from Twitter"
 
     response = json.loads(real_content.decode("utf-8"))
-
-    friends_count = response["friends_count"]
-    statuses_count = response["statuses_count"]
-    followers_count = response["followers_count"]
-    name = response["name"]
-
-    logging.info(f"Successfully logged in with Twitter as {name} ({screen_name})")
-    logging.info(f"friends_count: {friends_count}")
-    logging.info(f"statuses_count: {statuses_count}")
-    logging.info(f"followers_count: {followers_count}")
+    logging.info(response)
 
     # don't keep this token and secret in memory any longer
     del session[oauth_token]
