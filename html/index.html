@@ -107,7 +107,7 @@ function getRecommendations() {
     if (data.mode === 'stats') {
         console.log(data.data)
         showStats.style.display = 'block';
-        document.getElementById('num-falcons').innerHTML = data.data.total_followed_users.twitter;
+        document.getElementById('num-falcons').innerHTML = data.data.total_twitter_handles;
         document.getElementById('requests-hour').innerHTML = data.data.current_hour;
         document.getElementById('requests-day').innerHTML = data.data.current_day;
         document.getElementById('requests-week').innerHTML = data.data.current_week;
@@ -115,9 +115,9 @@ function getRecommendations() {
         data.twitter.forEach(function(user) {
         var listItem = document.createElement('li');
         var link = document.createElement('a');
-        link.href = `https://twitter.com/${user.username}`;
+        link.href = `https://twitter.com/${user}`;
         link.target = '_blank';
-        link.textContent = '@' + user.username;
+        link.textContent = '@' + user;
         listItem.appendChild(link);
         list.appendChild(listItem);
         });
